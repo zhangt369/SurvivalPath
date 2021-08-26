@@ -1,7 +1,7 @@
 Package: SurvivalPath
 Type: Package
 Title: Survival Path models for time-series survival data
-Version: 1.1.0
+Version: 1.1.1
 Author: Shen Lujun and Zhang Tao
 Maintainer: Zhang Tao <nyy1920@163.com>
 Description: Build the survival path of patients with a single disease.

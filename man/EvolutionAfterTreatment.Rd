@@ -2,7 +2,7 @@
 % Please edit documentation in R/EvolutionAfterTreatment.R
 \name{EvolutionAfterTreatment}
 \alias{EvolutionAfterTreatment}
-\title{Calculate the number of people (proportion) assigned to different branches after a certain
+\title{Calculate the number of participants (proportion) assigned to different sub-nodes after a certain
 node is treated by a specified plan}
 \usage{
 EvolutionAfterTreatment(
@@ -25,21 +25,21 @@ treatment
 \item{treatment}{Choose treatment}
 }
 \value{
-A dataframe whose rows and columns are the next node and treatment plan
+A dataframe whose rows and columns are the next node and treatment plan, respectively
 }
 \description{
-Calculate the number of people (proportion) assigned to different branches after a
+Calculate the number of people (proportion) assigned to different sub-nodes after a
 certain node is treated by a specified plan
 }
 \details{
-By specifying the node, using mytree to calculate the relevant branch variables and subsequent nodes,
-and using the original data to calculate, filter out the group of subjects who branch to the next node after
-the node adopts different treatment plans. Calculate the number of people assigned to different nodes according
+By specifying the node, using mytree to calculate the relevant bifurcation variables and subsequent nodes,
+and using the original data to calculate the number or proportion of subjects who branch to each sub-nodes after
+the participants in parent-node adopts different treatment plans. Calculate the number of people assigned to different sub-nodes according
 to different treatment methods (proportion).
 }
 \examples{
 data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 status <- list()
@@ -49,11 +49,11 @@ tsid <- list()
 treatment <- list()
 for (i in 1:10){
 
- data <- dataset[dataset['timenode']==i,]
+ data <- dataset[dataset['time_slice']==i,]
 
  time <- c(time,list(data['OStime_new']))
 
- status <- c(status,list(data['Status_new']))
+ status <- c(status,list(data['Status_of_death']))
 
  tsid <- c(tsid,list(data['ID']))
 
@@ -63,14 +63,14 @@ for (i in 1:10){
 
  tsdata <- c(tsdata,list(c_data))
 
- c_treatment <- subset(data, select = c("Treatment2"))
+ c_treatment <- subset(data, select = c("Resection"))
 
  treatment <- c(treatment,list(c_treatment))
 }
 
-tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 
-result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
+result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
 
 mytree <- result$tree
 ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
@@ -88,15 +88,15 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 
 #plot KM curve
-treepoints = c(16,23)
+treepoints = c(32,55)
 plotKM(result$data, treepoints,mytree,risk.table=T)
 #Comparing the efficacy of treatment methods by drawing survival curves
-treepoints = c(17,22)
-compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Treatment")
+treepoints = c(32,55)
+compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Resection")
 
-treepoint=16
-A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Treatment")
-mytable <- xtabs(~ `Treatment2`+treepoint, data=A)
+treepoint=32
+A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Resection")
+mytable <- xtabs(~ `Resection`+treepoint, data=A)
 prop.table(mytable,1)
 
 }

@@ -5,9 +5,9 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 
-#'@title  Draw the KM curve of different nodes after the specified treatment plan
+#'@title  Compare and Draw the KM curve of different nodes based on specified treatment plan
 #'@description Based on the survival tree, specify nodes and specify treatment methods,
-#'draw survival curves to compare prognostic effects.
+#'draw survival curves to compare treatments
 #'@usage compareTreatmentPlans(
 #'df,
 #'treepoints,
@@ -16,15 +16,15 @@
 #'treatment
 #')
 #'@param df "data" in the return result of the survivalpath function
-#'@param treepoints list object;Specify the node for drawing the KM curve, which is in the survival tree
+#'@param treepoints list object;Specify the node for drawing the KM curve, which is displayed in the survival path graphs
 #'@param  mytree  "mytree" in the return result of the survivalpath function
 #'@param source Raw data
-#'@param treatment Choose treatment
+#'@param treatment Choose treatment variable
 #'@details By specifying the node, using mytree to calculate the previous branch variables,
 #'and calculating with the original data, the group of subjects with different treatment plans
 #'at different nodes can be screened out. Draw the survival curve of patients based on the selected groups
 #'@seealso survminer
-#'
+#'@import survival
 #'@export
 #'@examples
 #'data("dataset")
@@ -38,11 +38,11 @@
 #'treatment <- list()
 #'for (i in 1:10){
 #'
-#'  data <- dataset[dataset['timenode']==i,]
+#'  data <- dataset[dataset['time_slice']==i,]
 #'
 #'  time <- c(time,list(data['OStime_new']))
 #'
-#'  status <- c(status,list(data['Status_new']))
+#'  status <- c(status,list(data['Status_of_death']))
 #'
 #'  tsid <- c(tsid,list(data['ID']))
 #'
@@ -52,12 +52,12 @@
 #'
 #'  tsdata <- c(tsdata,list(c_data))
 #'
-#'  c_treatment <- subset(data, select = c("Treatment2"))
+#'  c_treatment <- subset(data, select = c("Resection"))
 #'
 #'  treatment <- c(treatment,list(c_treatment))
 #'}
 #'
-#'tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 #'
 #'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
 #'
@@ -81,7 +81,7 @@
 #'plotKM(result$data, treepoints,mytree,risk.table=T)
 #'#Comparing the efficacy of treatment methods by drawing survival curves
 #'treepoints = c(17,22)
-#'compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Treatment")
+#'compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Resection")
 #'
 
 compareTreatmentPlans <- function(df,treepoints,mytree,source,treatment){
@@ -91,9 +91,13 @@ compareTreatmentPlans <- function(df,treepoints,mytree,source,treatment){
     newdf$treepoint <- d
     data.df <- rbind(data.df,newdf)
   }
-  #print(table(data.df[,3:4]))
-  name <- names(data.df)
-  fit <- survfit(Surv( time,status)~Treatment2+treepoint, data = data.df)
+
+  formula <- paste("Surv(time,status)~",paste(names(data.df)[3:4],collapse ="+") )
+
+  formula <- as.formula(formula)
+
+  fit <- surv_fit(formula,data=data.df)
+
   ggsurvplot(fit,data = data.df,
              pval = TRUE,
              #conf.int = TRUE,
@@ -136,7 +140,7 @@ getPatients <- function(df,treepoint,mytree,source,treatment){
   }
   #get  treepoint survival periods
   time_slice <- length(path)
-  print(path)
+  #print(path)
 
   for (i in time_slice:1){
 
@@ -175,14 +179,14 @@ getPatients <- function(df,treepoint,mytree,source,treatment){
   }
 
   result <- newdf[,1:3]
-  print(dim(result))
+  #print(dim(result))
 
-  sourcedata <- source[which(source$timenode==time_slice-1),]
-  print(dim(sourcedata))
+  sourcedata <- source[which(source$time_slice==time_slice-1),]
+  #print(dim(sourcedata))
 
   sourcedata <- sourcedata[sourcedata$ID %in% result$ID,]
 
-  result <-  subset(sourcedata,select=c("OStime_new","Status_new"))
+  result <-  subset(sourcedata,select=c("OStime_new","Status_of_death"))
   names(result) <- c("time","status")
   result <- cbind(result,sourcedata[,treatment])
 

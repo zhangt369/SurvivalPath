@@ -7,22 +7,13 @@ library(survival)
 library(rms)
 library(survivalROC)
 library(survival)
-library(survminer)#包中需要
-library(treeio) #包中需要
-library(ggtree) #包中不需要
-#X2021data <- read_excel("D:/Code/R/SurvivalPath0225/Survivaldata/SurvivalPath/20210704data.xlsx")
-X2021data <-  read_excel("D:/Code/R/SurvivalPath0225/Survivaldata/SurvivalPath/20210704data.xlsx",
-                           col_types = c("text", "numeric", "date",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "numeric", "numeric",
-                                         "numeric", "date", "numeric"))
+library(survminer)
+library(treeio)
+library(ggtree)
+
 data("dataset")
 
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 
@@ -36,7 +27,7 @@ treatment <- list()
 
 for (i in 1:10){
 
-  data <- dataset[dataset['timenode']==i,]
+  data <- dataset[dataset['time_slice']==i,]
 
   time <- c(time,list(data['OStime_new']))
 
@@ -57,18 +48,21 @@ for (i in 1:10){
 
 
 # cutoff
-tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*5)
 
-#varname=list('Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)') ,varvalue=list(1,1)
-#df <- matchsubgroup(time,status,tsdata[[1]],tsid,varname=
-#                       list('Amount of Hepatic Lesions') ,varvalue=list(1))
+varname=list('Amount of Hepatic Lesions')
+varvalue=list(1)
+df <- matchsubgroup(time,status,tsdata[[1]],tsid,
+                    varname=varname ,varvalue=varvalue)
 
 #ggtree
-#result <- survivalpath(df$time,df$status,df$tsdata,df$tsid,time_slices=7)
-#df <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 9)
+result <- survivalpath(df$time,df$status,df$timeslicedata,df$tspatientid,time_slices=9)
 
 
-result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices=10)
+
+#result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10)
+
+
 
 mytree <- result$tree
 ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
@@ -88,11 +82,11 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
 treepoints = c(16,23)
 plotKM(result$data, treepoints,mytree,risk.table=T)
 
-treepoints = c(17,22)
-compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Treatment2")
+treepoints = c(40,42)
+compareTreatmentPlans(result$data, treepoints,mytree,dataset,"TargetedTherapy")
 
-treepoint=16
-A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Treatment2")
-mytable <- xtabs(~ `Treatment2`+treepoint, data=A)
+treepoint=40
+A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Resection")
+mytable <- xtabs(~ `Resection`+treepoint, data=A)
 prop.table(mytable,1)
 

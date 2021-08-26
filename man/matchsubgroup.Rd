@@ -2,7 +2,7 @@
 % Please edit documentation in R/matchsubgroup.R
 \name{matchsubgroup}
 \alias{matchsubgroup}
-\title{Re-screen the initial time slice of the subject population and data according to the conditions}
+\title{Screen and collect data of subjects that meet the given conditions}
 \usage{
 matchsubgroup(
 time,
@@ -36,7 +36,7 @@ time,state,timeslicedata,tspatientid
 }
 \description{
 The data of the subjects that meet the conditions for the first time and the data of
-subsequent time slices will also be selected. According to the given screening conditions, the eligible subjects are screened
+subsequent time slices will also be selected. Their data from initial time slice that meet the given conditions to last time slice were compiled into a new time-slice dataset
 }
 \details{
 According to the input time, status, variables, subject ID, etc., the data of eligible
@@ -45,9 +45,58 @@ first and subsequent time slices are re-screened. The final returned result cont
 objects: time, state, timeslicedata, subject ID(tspatientid).
 }
 \examples{
-varname=list('Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)') ,varvalue=list(1,1)
-df <- matchsubgroup(time,status,tsdata,tspatientid,varname=
-                      list('Amount of Hepatic Lesions') ,varvalue=list(1))
+data("dataset")
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+
+time <- list()
+status <- list()
+tsdata <- list()
+tsid <- list()
+
+treatment <- list()
+for (i in 1:10){
+
+ data <- dataset[dataset['time_slice']==i,]
+
+ time <- c(time,list(data['OStime_new']))
+
+ status <- c(status,list(data['Status_of_death']))
+
+ tsid <- c(tsid,list(data['ID']))
+
+ c_data <- subset(data, select = c('Age','Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)','New Lesion','Vascular Invasion','Local Lymph Node Metastasis',
+                                   'Distal Metastasis','Ascites','Massive Ascites','Moderate or Mild Ascites'
+                                   ,'Infected with Hepatitis','ALB',"TBLT",'PT',"AFP"))
+
+ tsdata <- c(tsdata,list(c_data))
+
+ c_treatment <- subset(data, select = c("Resection"))
+
+ treatment <- c(treatment,list(c_treatment))
+}
+
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
+
+varname=list('Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)')
+varvalue=list(1,1)
+df <- matchsubgroup(time,status,tsdata[[1]],tsid,varname=
+                     list('Amount of Hepatic Lesions') ,varvalue=list(1))
+#ggtree
+result <- survivalpath(df$time,df$status,df$timeslicedata,df$tspatientid,time_slices=9)
+mytree <- result$tree
+ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
+ theme_tree2() +
+ geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
+ geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),hjust=0.6, vjust=-1.85 ,size=3.0)+
+ #geom_point2(aes(shape=isTip, color=isTip), size=mytree1@data$os/40)+
+ geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size\%/\%200+1,show.legend=F)+
+ #guides(color=guide_legend(title="node name/sample number/Median survival time/Survival rate")) +
+ labs(size= "Nitrogen",
+      x = "TimePoints",
+      y = "Survival",
+      subtitle = "node_name/sample number/Median survival time/Survival rate",
+      title = "Survival Tree") +
+ theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 
 }
 \author{

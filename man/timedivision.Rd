@@ -2,8 +2,7 @@
 % Please edit documentation in R/timedivision.R
 \name{timedivision}
 \alias{timedivision}
-\title{According to the specified time of the original data, select the data that conforms to the periodicity,
-and generate the data format that conforms to the survivalpath function}
+\title{Convert time-series data into time-slices in construction of survival paths}
 \usage{
 timedivision(
 dataset,
@@ -11,40 +10,37 @@ ID,
 time,
 period=30,
 left_interval = 0.5,
-right_interval = 1.5
+right_interval = 0.5
 )
 }
 \arguments{
-\item{dataset}{Refer to the built-in data set of this package}
+\item{dataset}{Refer to the colomn arranged time-series dataset, which has survival information}
 
-\item{ID}{Subject ID corresponding to each row of data in the dataset}
+\item{ID}{Subject ID corresponding to each row of data in the dataset, which should be unique for each participant}
 
-\item{time}{Represents the time when each row of data in the dataset is collected}
+\item{time}{the variable which indicates the time when each row of data in the dataset is collected}
 
-\item{period}{Represents the interval at which subjects with the same identification number are screened}
+\item{period}{The time interval at which time-series data of subjects with the same identification number are converted into time-slices data.}
 
-\item{left_interval}{The data collection time is less than the difference between the node time and
-left_interval*period, that is, the value is considered to belong to the time node. For data collected
-multiple times at the same time node, the earliest data is selected to represent the data collected by the node.}
+\item{left_interval}{Refer to the times of time slice interval of lower level of time for inclusion the time point data into specific time slice.
+For multiple time point data collected within the left and right interval of the specific time slice, the time point data closest to the integral
+times of time slice interval and within the left interval is the first choice.
+When there is no time point data in the left interval, the time point data closest to the integral times of time slice interval and within the right interval is the selected.}
 
-\item{right_interval}{The data collection time is less than the difference between right_interval*period and the
-node time, that is, the value is considered to belong to the time node. For data collected
-multiple times at the same time node, the earliest data is selected to represent the data collected by the node.}
+\item{right_interval}{Refer to the times of time slice interval of higher level of time for inclusion the time point data into specific time slice.
+When there is no time point data in the left interval, the time point data closest to the integral times of time slice interval and within the right interval is the selected.}
 }
 \value{
 dataframe;Data with the same ID number, sorted by consecutive time nodes
 }
 \description{
 Perform data preprocessing for survivalpath, filter and regularize
-data entries that conform to continuous time intervals according to time.
-}
-\details{
-for time point
+data entries that conform to continuous time intervals (namely, into time slices) according to time.
 }
 \examples{
 data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 }
 \author{
-Shen Lujun and ZhangTao
+Lujun Shen and Tao Zhang
 }

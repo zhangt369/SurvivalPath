@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotKM.R
 \name{plotKM}
 \alias{plotKM}
-\title{Draw the KM curve of any given node}
+\title{Compare and Draw the KM curve of any given node}
 \usage{
 plotKM(
 df,
@@ -31,7 +31,7 @@ draw the KM curve
 }
 \examples{
 data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 status <- list()
@@ -41,11 +41,11 @@ tsid <- list()
 treatment <- list()
 for (i in 1:10){
 
- data <- dataset[dataset['timenode']==i,]
+ data <- dataset[dataset['time_slice']==i,]
 
  time <- c(time,list(data['OStime_new']))
 
- status <- c(status,list(data['Status_new']))
+ status <- c(status,list(data['Status_of_death']))
 
  tsid <- c(tsid,list(data['ID']))
 
@@ -55,12 +55,12 @@ for (i in 1:10){
 
  tsdata <- c(tsdata,list(c_data))
 
- c_treatment <- subset(data, select = c("Treatment2"))
+ c_treatment <- subset(data, select = c("Resection"))
 
  treatment <- c(treatment,list(c_treatment))
 }
 
-tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 
 result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
 

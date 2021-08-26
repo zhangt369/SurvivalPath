@@ -2,14 +2,14 @@
 % Please edit documentation in R/classifydata.R
 \name{classifydata}
 \alias{classifydata}
-\title{The same classification of different risk factors at each time node}
+\title{Reclassify variables into binary variables based on survivalROC}
 \usage{
 classifydata(
 time,
 status,
 timeslicedata,
 tspatientid,
-cutoff,
+predict.time,
 isfill=T
 )
 }
@@ -18,11 +18,11 @@ isfill=T
 
 \item{status}{Indicator of status, 1 if death or event, 0 otherwise}
 
-\item{timeslicedata}{list object; in turn include the risk factors of subjects at different time nodes}
+\item{timeslicedata}{list object; each dataframe of the list represent data at individual time slices}
 
-\item{tspatientid}{list object; The unique identification number corresponding to the subject at each time node}
+\item{tspatientid}{list object; The unique identification number corresponding to the subject at each time slice}
 
-\item{cutoff}{Time point of the ROC curve}
+\item{predict.time}{Time point to predict during drawing the ROC curve}
 
 \item{isfill}{Logical value, used to confirm whether to fill in missing data. If it is True, then fill}
 }
@@ -35,8 +35,8 @@ cutoff  Optimal classification threshold
 }
 \description{
 Based on the survivalROC package, using the survival time
-and survival state, calculate the optimal threshold for the binary classification
-of each variable of the initial node. According to the threshold, the variables of
+and survival state, calculate the optimal cutoff for the binary classification
+of each variable using data at the first time slice. According to the cutoff, the variables of
 different nodes are classified into two categories.
 }
 \details{
@@ -62,11 +62,11 @@ treatment <- list()
 
 for (i in 1:10){
 
- data <- dataset[dataset['timenode']==i,]
+ data <- dataset[dataset['time_slice']==i,]
 
  time <- c(time,list(data['OStime_new']))
 
- status <- c(status,list(data['Status_new']))
+ status <- c(status,list(data['Status_of_death']))
 
  tsid <- c(tsid,list(data['ID']))
 
@@ -76,14 +76,14 @@ for (i in 1:10){
 
  tsdata <- c(tsdata,list(c_data))
 
- c_treatment <- subset(data, select = c("Treatment2"))
+ c_treatment <- subset(data, select = c("Resection"))
 
  treatment <- c(treatment,list(c_treatment))
 }
 
 
-# cutoff
-tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+# predict.time
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 
 }
 \seealso{

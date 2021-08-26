@@ -1,21 +1,21 @@
-#'@title  The same classification of different risk factors at each time node
+#'@title  Reclassify variables into binary variables based on survivalROC
 #'@description Based on the survivalROC package, using the survival time
-#'and survival state, calculate the optimal threshold for the binary classification
-#'of each variable of the initial node. According to the threshold, the variables of
+#'and survival state, calculate the optimal cutoff for the binary classification
+#'of each variable using data at the first time slice. According to the cutoff, the variables of
 #' different nodes are classified into two categories.
 #'@usage classifydata(
 #'time,
 #'status,
 #'timeslicedata,
 #'tspatientid,
-#'cutoff,
+#'predict.time,
 #'isfill=T
 #')
 #'@param time Event time or censoring time for subjects
 #'@param status Indicator of status, 1 if death or event, 0 otherwise
-#'@param  timeslicedata list object; in turn include the risk factors of subjects at different time nodes
-#'@param tspatientid list object; The unique identification number corresponding to the subject at each time node
-#'@param  predict.time Time point of the ROC curve
+#'@param  timeslicedata list object; each dataframe of the list represent data at individual time slices
+#'@param tspatientid list object; The unique identification number corresponding to the subject at each time slice
+#'@param  predict.time Time point to predict during drawing the ROC curve
 #'@param isfill  Logical value, used to confirm whether to fill in missing data. If it is True, then fill
 #'@details According to the first time node, the survival data is used to calculate the optimal classification threshold
 #'of different risk factors. The risk factor threshold calculated at the first time node is used to calculate
@@ -26,6 +26,7 @@
 #'@return cutoff  Optimal classification threshold
 #'@seealso survivalROC
 #'@export
+#'@import survivalROC
 #'@examples
 #'data("dataset")
 #'
@@ -43,11 +44,11 @@
 #'
 #'for (i in 1:10){
 #'
-#'  data <- dataset[dataset['timenode']==i,]
+#'  data <- dataset[dataset['time_slice']==i,]
 #'
 #'  time <- c(time,list(data['OStime_new']))
 #'
-#'  status <- c(status,list(data['Status_new']))
+#'  status <- c(status,list(data['Status_of_death']))
 #'
 #'  tsid <- c(tsid,list(data['ID']))
 #'
@@ -57,14 +58,14 @@
 #'
 #'  tsdata <- c(tsdata,list(c_data))
 #'
-#'  c_treatment <- subset(data, select = c("Treatment2"))
+#'  c_treatment <- subset(data, select = c("Resection"))
 #'
 #'  treatment <- c(treatment,list(c_treatment))
 #'}
 #'
 #'
-#' # cutoff
-#'tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+#' # predict.time
+#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 #'
 
 
@@ -75,7 +76,7 @@ classifydata <- function(time,status,timeslicedata,tspatientid,predict.time,isfi
   variables <- timeslicedata[[1]]
 
   result <- list()
-  predict.time <- list()
+  cutoff <- list()
   cut.variable <- list()
 
   for (v in 1:length(varnames)){
@@ -113,16 +114,17 @@ classifydata <- function(time,status,timeslicedata,tspatientid,predict.time,isfi
         timeslicedata[[i]][[v]] <- ifelse(timeslicedata[[i]][[v]] <= thresholds,0,1)
       }
 
-      predict.time <- c(predict.time,thresholds)
+      cutoff <- c(cutoff,thresholds)
+      #print(cutoff)
       cut.variable <- c(cut.variable,varn)
     }
 
-    names(predict.time)  <- cut.variable
-    predict.time <- data.frame(predict.time)
+    cutoff <- data.frame(cutoff)
+    names(cutoff)  <- cut.variable
 
   }
 
   (result$timeslicedata <- timeslicedata)
-  (result$predict.time <- predict.time)
+  (result$cutoff <- cutoff)
   result
 }

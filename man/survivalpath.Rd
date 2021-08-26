@@ -2,7 +2,7 @@
 % Please edit documentation in R/survivalpath.R
 \name{survivalpath}
 \alias{survivalpath}
-\title{Build survival path, generate survival tree}
+\title{Build survival path model using time-slices data}
 \usage{
 survivalpath(
 time,
@@ -14,35 +14,36 @@ treatments=NULL,
 num_categories=2,
 p.value=0.05,
 minsample = 15,
-degreeofcorrelation=0.7
+degreeofcorrelation=0.7,
+rates=365
 )
 }
 \arguments{
-\item{time}{list object;Elements sorted by time node, each element is a
+\item{time}{list object;Elements sorted by time slice, each element is a
 Dataframe object, representing event time or censoring time for subjects}
 
-\item{status}{list object;Elements sorted by time node, each element is a
+\item{status}{list object;Elements sorted by time slice, each element is a
 Dataframe object, representing status, 1 if death or event, 0 otherwise.}
 
-\item{timeslicedata}{list object; Elements sorted by time node, each element is a
-Dataframe object, representing risk factors for the subject}
+\item{timeslicedata}{list object; Elements sorted by time slice, each element is a
+Dataframe object, representing candidate variables for the subject}
 
-\item{tspatientid}{list object; Elements sorted by time node, each element is a
-Dataframe object, representing the subjects’ identification number}
+\item{tspatientid}{list object; Elements sorted by time slice, each element is a
+Dataframe object, representing the subjects? unique identification number}
 
-\item{time_slices}{null}
+\item{time_slices}{numeric, define the total number of time slices (starting from the front) need to be included in the survival path model}
 
 \item{treatments}{default NULL.It is possible to specify the intervention measures taken
-by the subjects at different time points. list object}
+by the subjects at different time slices. list object}
 
 \item{num_categories}{default 2. The maximum number of branches that each node can divide}
 
-\item{p.value}{p.value for univariate selection; variables less than p.value are given meaning}
+\item{p.value}{p.value for hypothesis testing; variables with p value less than p.value are significant}
 
 \item{minsample}{Minimum sample size for branching}
 
 \item{degreeofcorrelation}{default 0.7;When the correlation between variables is greater than this value,
-the variables are considered to be correlated.}
+the variables are considered to have collinearity.}
 }
 \value{
 Returns a list of the following items:
@@ -51,14 +52,14 @@ subject divided at different time points
 tree survival tree of newick structure
 }
 \description{
-build survival path, plot survival tree
+build survival path models and return tree-like structure results
 }
 \details{
 for survivalpath
 }
 \examples{
 data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 status <- list()
@@ -82,14 +83,14 @@ for (i in 1:10){
 
  tsdata <- c(tsdata,list(c_data))
 
- c_treatment <- subset(data, select = c("Treatment2"))
+ c_treatment <- subset(data, select = c("Resection"))
 
  treatment <- c(treatment,list(c_treatment))
 }
 
-tsdata <- classifydata(time,status,tsdata,tsid,cutoff=365*1)
+tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 
-result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
+result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
 
 mytree <- result$tree
 ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
@@ -108,5 +109,5 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
 
 }
 \author{
-Shen Lujun and ZhangTao
+Lujun Shen and Tao Zhang
 }
