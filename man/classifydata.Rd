@@ -46,9 +46,9 @@ the grading of the risk factors at each time node. Return the cutoff correspondi
 the classified timeslicedata.
 }
 \examples{
-data("dataset")
+data("DTSDHCC")
 
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
+dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 
@@ -64,15 +64,15 @@ for (i in 1:10){
 
  data <- dataset[dataset['time_slice']==i,]
 
- time <- c(time,list(data['OStime_new']))
+ time <- c(time,list(data['OStime_day']))
 
  status <- c(status,list(data['Status_of_death']))
 
  tsid <- c(tsid,list(data['ID']))
 
- c_data <- subset(data, select = c('Age','Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)','New Lesion','Vascular Invasion','Local Lymph Node Metastasis',
-                                   'Distal Metastasis','Ascites','Massive Ascites','Moderate or Mild Ascites'
-                                   ,'Infected with Hepatitis','ALB',"TBLT",'PT',"AFP"))
+ c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
+   "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
+
 
  tsdata <- c(tsdata,list(c_data))
 

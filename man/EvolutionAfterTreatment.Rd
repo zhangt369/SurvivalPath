@@ -38,8 +38,8 @@ the participants in parent-node adopts different treatment plans. Calculate the 
 to different treatment methods (proportion).
 }
 \examples{
-data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+data("DTSDHCC")
+dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 
 time <- list()
 status <- list()
@@ -51,15 +51,15 @@ for (i in 1:10){
 
  data <- dataset[dataset['time_slice']==i,]
 
- time <- c(time,list(data['OStime_new']))
+ time <- c(time,list(data['OStime_day']))
 
  status <- c(status,list(data['Status_of_death']))
 
  tsid <- c(tsid,list(data['ID']))
 
- c_data <- subset(data, select = c('Age','Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)','New Lesion','Vascular Invasion','Local Lymph Node Metastasis',
-                                   'Distal Metastasis','Ascites','Massive Ascites','Moderate or Mild Ascites'
-                                   ,'Infected with Hepatitis','ALB',"TBLT",'PT',"AFP"))
+ c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
+   "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
+
 
  tsdata <- c(tsdata,list(c_data))
 
@@ -73,12 +73,16 @@ tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
 
 mytree <- result$tree
-ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
+
+library(ggtree)
+library(ggplot2)
+ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
  theme_tree2() +
  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
- geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),hjust=0.6, vjust=-1.85 ,size=3.0)+
+ geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),
+ hjust=0.6, vjust=-1.85 ,size=3.0)+
  #geom_point2(aes(shape=isTip, color=isTip), size=mytree1@data$os/40)+
- geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size\%/\%200+1,show.legend=F)+
+ geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size\%/\%200+1,show.legend=FALSE)+
  #guides(color=guide_legend(title="node name/sample number/Median survival time/Survival rate")) +
  labs(size= "Nitrogen",
       x = "TimePoints",
@@ -88,13 +92,13 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 
 #plot KM curve
-treepoints = c(32,55)
+treepoints = c(47,42)
 plotKM(result$data, treepoints,mytree,risk.table=T)
 #Comparing the efficacy of treatment methods by drawing survival curves
-treepoints = c(32,55)
+treepoints = c(47,42)
 compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Resection")
 
-treepoint=32
+treepoint=42
 A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Resection")
 mytable <- xtabs(~ `Resection`+treepoint, data=A)
 prop.table(mytable,1)

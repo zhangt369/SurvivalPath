@@ -38,8 +38,8 @@ Perform data preprocessing for survivalpath, filter and regularize
 data entries that conform to continuous time intervals (namely, into time slices) according to time.
 }
 \examples{
-data("dataset")
-dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+data("DTSDHCC")
+dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 }
 \author{
 Lujun Shen and Tao Zhang
