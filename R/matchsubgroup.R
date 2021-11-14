@@ -29,8 +29,8 @@
 #'@author Shen Lujun and ZhangTao
 #'@export
 #'@examples
-#'data("dataset")
-#'dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'data("DTSDHCC")
+#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 #'
 #'time <- list()
 #'status <- list()
@@ -42,15 +42,15 @@
 #'
 #'  data <- dataset[dataset['time_slice']==i,]
 #'
-#'  time <- c(time,list(data['OStime_new']))
+#'  time <- c(time,list(data['OStime_day']))
 #'
 #'  status <- c(status,list(data['Status_of_death']))
 #'
 #'  tsid <- c(tsid,list(data['ID']))
 #'
-#'  c_data <- subset(data, select = c('Age','Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)','New Lesion','Vascular Invasion','Local Lymph Node Metastasis',
-#'                                    'Distal Metastasis','Ascites','Massive Ascites','Moderate or Mild Ascites'
-#'                                    ,'Infected with Hepatitis','ALB',"TBLT",'PT',"AFP"))
+#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
+#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
+#'
 #'
 #'  tsdata <- c(tsdata,list(c_data))
 #'
@@ -69,12 +69,16 @@
 #'#ggtree
 #'result <- survivalpath(df$time,df$status,df$timeslicedata,df$tspatientid,time_slices=9)
 #'mytree <- result$tree
-#'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
+#'
+#'library(ggtree)
+#'library(ggplot2)
+#'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
-#'  geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),hjust=0.6, vjust=-1.85 ,size=3.0)+
+#'  geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),
+#'  hjust=0.6, vjust=-1.85 ,size=3.0)+
 #'  #geom_point2(aes(shape=isTip, color=isTip), size=mytree1@data$os/40)+
-#'  geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size%/%200+1,show.legend=F)+
+#'  geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size%/%200+1,show.legend=FALSE)+
 #'  #guides(color=guide_legend(title="node name/sample number/Median survival time/Survival rate")) +
 #'  labs(size= "Nitrogen",
 #'       x = "TimePoints",

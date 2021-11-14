@@ -24,9 +24,10 @@
 #'@return dataframe;Data with the same ID number, sorted by consecutive time nodes
 #'@author Lujun Shen and Tao Zhang
 #'@import dplyr
+#'@importFrom dplyr src
 #'@examples
-#'data("dataset")
-#'dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'data("DTSDHCC")
+#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 #'@export
 #'
 #'

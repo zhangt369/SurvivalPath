@@ -38,6 +38,7 @@
 #'@param minsample Minimum sample size for branching
 #'@param degreeofcorrelation default 0.7;When the correlation between variables is greater than this value,
 #'the variables are considered to have collinearity.
+#'@param rates Calculate the survival rate of the node in the survival path at that point "rates" in time
 #'@details for survivalpath
 #'@return Returns a list of the following items:
 #' data dataframe:contains the main risk factors and corresponding values of each
@@ -47,9 +48,16 @@
 #'@export
 #'@import survminer
 #'@import treeio
+#'@import Hmisc
+#'@importFrom dplyr src
+#'@importFrom treeio mask
+#'@importFrom dplyr summarize
+#'@importFrom stats pchisq
+#'@importFrom stats drop1
+#'@importFrom stats step
 #'@examples
-#'data("dataset")
-#'dataset = timedivision(X2021data,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'data("DTSDHCC")
+#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 #'
 #'time <- list()
 #'status <- list()
@@ -59,17 +67,17 @@
 #'treatment <- list()
 #'for (i in 1:10){
 #'
-#'  data <- dataset[dataset['timenode']==i,]
+#'  data <- dataset[dataset['time_slice']==i,]
 #'
-#'  time <- c(time,list(data['OStime_new']))
+#'  time <- c(time,list(data['OStime_day']))
 #'
-#'  status <- c(status,list(data['Status_new']))
+#'  status <- c(status,list(data['Status_of_death']))
 #'
 #'  tsid <- c(tsid,list(data['ID']))
 #'
-#'  c_data <- subset(data, select = c('Age','Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)','New Lesion','Vascular Invasion','Local Lymph Node Metastasis',
-#'                                    'Distal Metastasis','Ascites','Massive Ascites','Moderate or Mild Ascites'
-#'                                    ,'Infected with Hepatitis','ALB',"TBLT",'PT',"AFP"))
+#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
+#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
+#'
 #'
 #'  tsdata <- c(tsdata,list(c_data))
 #'
@@ -80,15 +88,19 @@
 #'
 #'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
 #'
-#'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
+#'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,
+#'degreeofcorrelation=0.7)
 #'
+#'library(ggtree)
+#'library(ggplot2)
 #'mytree <- result$tree
-#'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = T, )+
+#'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
-#'  geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),hjust=0.6, vjust=-1.85 ,size=3.0)+
+#'  geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),
+#'  hjust=0.6, vjust=-1.85 ,size=3.0)+
 #'  #geom_point2(aes(shape=isTip, color=isTip), size=mytree1@data$os/40)+
-#'  geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size%/%200+1,show.legend=F)+
+#'  geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size%/%200+1,show.legend=FALSE)+
 #'  #guides(color=guide_legend(title="node name/sample number/Median survival time/Survival rate")) +
 #'  labs(size= "Nitrogen",
 #'       x = "TimePoints",
@@ -197,7 +209,7 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
 
   for (time_slice in 1:time_slices){
     #print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
-    print(paste('time_slice:',time_slice,sep = ''))
+    #print(paste('time_slice:',time_slice,sep = ''))
 
     previousbranchID <- branchID  #list
 
@@ -997,7 +1009,7 @@ treetoexcel <- function(exceltree,tree,time,status,timeslicedata,tspatientid){
   mm=0
   for (treepoint in node) {
     res <- getonenodePatients(exceltree,treepoint,tree,df)
-    print(res$path)
+    #print(res$path)
     for (id in res$data$ID){
       #print(id)
       for (ip in 1:length(res$path)) {
