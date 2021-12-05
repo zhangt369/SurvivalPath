@@ -16,4 +16,5 @@ available from github, https://github.com/zhangt369/SurvivalPath.
 
 - 1.Download and install the package “SurvivalPath” in the CRAN. 
 - 2.Download the latest release (tar.gz or zip file) at “https://github.com/zhangt369/SurvivalPath” and install the package through local path through the command:
+    
     install.packages("~/Yourpath/filename", repos = NULL, type = "source")).
