@@ -2,73 +2,52 @@
 % Please edit documentation in R/plotKM.R
 \name{plotKM}
 \alias{plotKM}
-\title{Compare and Draw the KM curve of any given node}
+\title{Compare and Draw the KM curves of any given nodes}
 \usage{
 plotKM(
 df,
 treepoints,
 mytree,
-risk.table=T
+risk.table=TRUE
 )
 }
 \arguments{
-\item{df}{"data" in the return result of the survivalpath function}
+\item{df}{"data" in the returned result of the \code{survivalpath()} function}
 
-\item{treepoints}{list object;Specify the node for drawing the KM curve, which is in the survival tree}
+\item{treepoints}{list object;Specify the node for drawing the KM curve, which is in the survival path tree}
 
-\item{mytree}{"mytree" in the return result of the survivalpath function}
+\item{mytree}{"tree" in the returned result of the \code{survivalpath()} function}
 
-\item{risk.table}{Allowed values include:
-TRUE or FALSE specifying whether to show or not the risk table. Default is FALSE."absolute" or "percentage".
-Shows the absolute number and the percentage of subjects at risk by time, respectively. "abs_pct" to show both absolute number and percentage.
-"nrisk_cumcensor" and "nrisk_cumevents". Show the number at risk and, the cumulative number of censoring and events, respectively.}
+\item{risk.table}{Logical value. Allowed values include:TRUE or FALSE specifying whether to show the risk table. Default is FALSE.}
+}
+\value{
+No return value.
 }
 \description{
-According to the survival tree, draw the KM curve of the nodes on the survival tree
+According to the survival path tree, draw the KM curves of the using any nodes on the survival tree
 }
 \details{
-draw the KM curve
+Plot survival curves for patients contained in nodes in the survival path tree.
 }
 \examples{
+library(dplyr)
 data("DTSDHCC")
-dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
-
-time <- list()
-status <- list()
-tsdata <- list()
-tsid <- list()
-
-treatment <- list()
-for (i in 1:10){
-
- data <- dataset[dataset['time_slice']==i,]
-
- time <- c(time,list(data['OStime_day']))
-
- status <- c(status,list(data['Status_of_death']))
-
- tsid <- c(tsid,list(data['ID']))
-
- c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-   "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-
-
- tsdata <- c(tsdata,list(c_data))
-
- c_treatment <- subset(data, select = c("Resection"))
-
- treatment <- c(treatment,list(c_treatment))
-}
-
-tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-
-result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,
-degreeofcorrelation=0.7)
+id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+set.seed(123)
+id = sample(id,500)
+miniDTSDHCC <- DTSDHCC[DTSDHCC$ID \%in\% id,]
+dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+ statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+ "Largest.Diameter.of.Hepatic.Lesions",
+ "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+ "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+result <- survivalpath(resu,time_slices =9)
 
 mytree <- result$tree
 
-library(ggtree)
 library(ggplot2)
+library(ggtree)
 ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
  theme_tree2() +
  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -85,7 +64,7 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 
 #plot KM curve
-treepoints = c(16,23)
+treepoints = c(14,20)
 plotKM(result$data, treepoints,mytree,risk.table=T)
 
 }

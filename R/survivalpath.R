@@ -7,13 +7,11 @@
 
 
 
-#'@title  Build survival path model using time-slices data
-#'@description build survival path models and return tree-like structure results
+#'@title Build Survival Path Model Using Dynamic Time Series Data (DTSD) object
+#'@description Survival Path Mapping for Dynamic Prediction of Cancer Patients Using Time-Series Survival Data.This is the core function that build
+#'survival path tree model based on Akaike information criterion (AIC) and self-designed arguments.
 #'@usage survivalpath(
-#'time,
-#'status,
-#'timeslicedata,
-#'tspatientid,
+#'DTSD,
 #'time_slices,
 #'treatments=NULL,
 #'num_categories=2,
@@ -22,78 +20,85 @@
 #'degreeofcorrelation=0.7,
 #'rates=365
 #')
-#'@param time list object;Elements sorted by time slice, each element is a
-#'Dataframe object, representing event time or censoring time for subjects
-#'@param status  list object;Elements sorted by time slice, each element is a
-#'Dataframe object, representing status, 1 if death or event, 0 otherwise.
-#'@param  timeslicedata list object; Elements sorted by time slice, each element is a
-#'Dataframe object, representing candidate variables for the subject
-#'@param tspatientid list object; Elements sorted by time slice, each element is a
-#'Dataframe object, representing the subjects? unique identification number
-#'@param time_slices numeric, define the total number of time slices (starting from the front) need to be included in the survival path model
-#'@param treatments default NULL.It is possible to specify the intervention measures taken
-#'by the subjects at different time slices. list object
-#'@param num_categories default 2. The maximum number of branches that each node can divide
-#'@param p.value p.value for hypothesis testing; variables with p value less than p.value are significant
+#'
+#'@param DTSD A DTSD class object. See function \code{generatorDTSD()} for details.
+#'@param time_slices numeric, define the total number of time slices (starting from the front) needed to be included in the survival path model
+#'@param treatments A list object, with default value of NULL. This argument is used to specify the intervention measures/exposure taken by
+#'the observation at different time slices. The treatment or exposure variables specified will not be utilized in construction of the survival path model
+#'@param num_categories Numeric, the default value is 2. The maximum number of branches that each node can divide
+#'@param p.value \code{p.value} for hypothesis testing; variables with p value less than p.value in univariate analysis are significant candidate
+#'variables and will undergo further feature selection
 #'@param minsample Minimum sample size for branching
-#'@param degreeofcorrelation default 0.7;When the correlation between variables is greater than this value,
-#'the variables are considered to have collinearity.
-#'@param rates Calculate the survival rate of the node in the survival path at that point "rates" in time
-#'@details for survivalpath
-#'@return Returns a list of the following items:
-#' data dataframe:contains the main risk factors and corresponding values of each
-#'subject divided at different time points
-#' tree survival tree of newick structure
+#'@param degreeofcorrelation default 0.7;When the correlation between variables is greater than this value, the variables are considered
+#'to have collinearity. The pair of variables that exceed the correlation coefficient will automatically compare their Akaike information criterion (AIC)
+#'values when each of two serve as the only predictor for outcome; the variable with the smaller AIC value will be removed.
+#'@param rates Numeric value. Calculate the rate of the outcome for the nodes in the survival path model at the time point of the argument \code{rates}
+#'@details After the pre-processing of data, under a user-defined parameters on covariates, significance level, minimum bifurcation sample size and number of time slices
+#'for analysis, survival paths can be computed using the main function, which can be visualized as a tree diagram.
+#'@return The survivalpath function returns an object, which includes data, tree and df.
+#'\item{data}{\code{data} describes the grouping variables and values for each observation at different time slices.}
+#'\item{tree}{A \code{treedata} object \code{tree},which facilitate creation of tree diagram and mapping of patients' personalized survival path}
+#'\item{df}{A Data.frame object containing the node numbers corresponding to each observation at different time slices in survival path tree model
+#'tree. The dataframe added three new columns, the parent_node correspond to the upper node that the observation belongs to, which indicate the group
+#'of participants for modeling and feature selection; the sub_node indicates the node that the corresponding observation represent after subdivision
+#'from the parent_node, the information of sub_node is used for model evaluation and comparison. The variable_value indicate the reason for transfer
+#'from the parent_node to the sub_node.}
+#'\item{maxpath}{The longest path length in the survival path model.}
+#'
+#'@note The idea of developing the SurvivalPath R package stems from our previous exploratory work, in which we attempted to achieve dynamic prognosis
+#'prediction by establishing survival paths based on the time-series data of patients with hepatocellular carcinoma (HCC). The survival path approach
+#'we proposed provide a potential solution for dynamic prognosis prediction and management of cancer patients by constructing survival path maps using
+#'returned key prognostic factors after analysis of structured time-series survival data. More importantly, the survival path model could be easily
+#'understood and utilized by clinicians when compared to black-box models.
+#'The SurvivalPath R package is a newly developed tool to facilitate fast building of survival path models, with an aim of promoting standardization
+#'of this methodology. In this package we optimized the feature selection process. Oneto one collinearity analysis was embedded (as an argument) to
+#'screen out noncollinear candidate variables before formal feature selection in the main function to reduces the confounding impact of potential
+#'collinearity on feature selection in the Cox model. In addition, the SurvivalPath R package is now compatible with continuous variable. The classifydata
+#'function enabling automatic binary classification of continuous variables and their entry into the model.
+#'This methodology is still young, and we welcome efforts from all the world to improve it.
+
 #'@author Lujun Shen and Tao Zhang
+#' @references Lujun Shen. (2018)
+#' \emph{Dynamically prognosticating patients with hepatocellular carcinoma through survival paths mapping based on time-series data},
+#' \url{https://www.nature.com/articles/s41467-018-04633-7.pdf}\cr
+#' \emph{Nat Commun. 2018 Jun 8;9(1):2230. doi: 10.1038/s41467-018-04633-7. PMID: 29884785; PMCID: PMC5993743.}
 #'@export
-#'@import survminer
-#'@import treeio
-#'@import Hmisc
 #'@importFrom dplyr src
 #'@importFrom treeio mask
 #'@importFrom dplyr summarize
 #'@importFrom stats pchisq
 #'@importFrom stats drop1
 #'@importFrom stats step
+#'@importFrom stats cor
+#'@importFrom Hmisc rcorr.cens
+#'@importFrom stats predict
+#'@import survminer
+#'@import survivalROC
+#'@import treeio
 #'@examples
+#'library(dplyr)
 #'data("DTSDHCC")
-#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'#Randomly select a proportion of cases for demo
+#'id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+#'set.seed(123)
+#'id = sample(id,500)
+#'miniDTSDHCC <- DTSDHCC[DTSDHCC$ID %in% id,]
+#'#Convert multiple rows time series data into time-slices data
+#'dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'#Create DTSD object using time-slices data
+#'resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+#'  statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+#'  "Largest.Diameter.of.Hepatic.Lesions",
+#'  "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+#'  "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+#'#Construction of survival path using this function, takes minutes
+#'result <- survivalpath(resu,time_slices =9)
 #'
-#'time <- list()
-#'status <- list()
-#'tsdata <- list()
-#'tsid <- list()
-#'
-#'treatment <- list()
-#'for (i in 1:10){
-#'
-#'  data <- dataset[dataset['time_slice']==i,]
-#'
-#'  time <- c(time,list(data['OStime_day']))
-#'
-#'  status <- c(status,list(data['Status_of_death']))
-#'
-#'  tsid <- c(tsid,list(data['ID']))
-#'
-#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-#'
-#'
-#'  tsdata <- c(tsdata,list(c_data))
-#'
-#'  c_treatment <- subset(data, select = c("Resection"))
-#'
-#'  treatment <- c(treatment,list(c_treatment))
-#'}
-#'
-#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-#'
-#'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,
-#'degreeofcorrelation=0.7)
-#'
-#'library(ggtree)
+#'#Draw Suvival Path Tree
 #'library(ggplot2)
+#'library(ggtree)
 #'mytree <- result$tree
+#'
 #'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -113,8 +118,19 @@
 
 # data.tree
 
-survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treatments=NULL,num_categories=2,
-                         p.value=0.05,minsample = 15,degreeofcorrelation=0.7,rates=365) {
+
+survivalpath <- function(DTSD,time_slices,treatments=NULL,num_categories=2,
+                              p.value=0.05,minsample = 15,degreeofcorrelation=0.7,rates=365) {
+  if(!  "DTSD" %in% class(DTSD) ){
+    stop('The data type of the input object DTSD is not "DTSD" ')
+  }
+
+
+  time <- DTSD$time
+  status <- DTSD$status
+  timeslicedata <- DTSD$tsdata
+  tspatientid <- DTSD$tsid
+
   l_time <- length(time)
   l_status <- length(status)
   l_timesl <- length(timeslicedata)
@@ -122,30 +138,7 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
 
 
   ######################################################################################################
-  #format
 
-  if (!is.list(time)) {
-    stop('time should be a list of data.frame!')
-  }
-  if (!is.list(status)) {
-    stop('status should be a list of data.frame!')
-  }
-  if (!is.list(timeslicedata)) {
-    stop('timeslicedata should be a list of data.frame!')
-  }
-  if (!is.list(tspatientid)) {
-    stop('tspatientid should be a list of data.frame!')
-  }
-
-  #Data preprocessing, class 2 variables are transformed into class 2 variables
-
-  #timeslicedata <- classifydata(time,status,timeslicedata,tspatientid)
-
-  #Judging the number of input data time nodes is consistent
-  if (l_time!=l_status | l_time!= l_timesl | l_time != l_id){
-    stop(sprintf('The length of time,status,timeslicedata and tspatientid are:%d, %d, %d, %d,
-                                but they should be the same length.',l_time,l_status,l_timesl,l_id))
-  }
 
   if(!is.null(treatments)){
     l_tr <- length(treatments)
@@ -157,11 +150,6 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
       stop(sprintf('The length of time,status,timeslicedata , tspatientid,treatments are:%d, %d, %d, %d,%d,
                                 but they should be the same length.',l_time,l_status,l_timesl,l_id,l_tr))
     }
-  }
-
-  #A patient's unique coding id required
-  if (l_id==0){
-    stop('The input can\'t be empty')
   }
 
 
@@ -396,6 +384,20 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
         curr_names <- names(mainvar$variables)
       }
 
+      if(length(curr_names)==0 ){
+        ts_br_var[[i_id]] <- "all"
+
+        branch <- list(current_ts_b_id)
+
+        b_varname = "all"
+
+        ts_br_num[[i_id]] <- length(branch)
+
+        branchID <- c(branchID,branch)
+        branchID_var_value <- c(branchID_var_value,b_varname)
+        next()
+      }
+
       #print("curr_names")
       #print(curr_names)
 
@@ -452,9 +454,12 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
   ## (result,time,status,tsid){
   result$data <- structureResult(survivalpathresults,time,status,tspatientid)
   dfdata <- result$data
-  result$tree <-  df2newick(result$data,innerlabel = T, period=rates)
+  result$tree <-  df2newick(result$data,innerlabel = TRUE, period=rates)
   dftree <- result$tree
-  result$df <- treetoexcel(dfdata,dftree ,time,status,timeslicedata,tspatientid)
+  #result$df <- treetoexcel(dfdata,dftree ,time,status,timeslicedata,tspatientid)
+  dfpath <- treetoexcel(dfdata,dftree,DTSD)
+  result$df <- dfpath$df
+  result$maxpath <- dfpath$maxpath
 
   return(result)
 }
@@ -462,7 +467,7 @@ survivalpath <- function(time,status,timeslicedata,tspatientid,time_slices,treat
 #--------------------------------------------------------------------------------------------------------------
 pvalue <- function(x,time,status,variables,v_names,num_categories){
 
-  options(warn = 0)
+
 
   time = as.numeric(unlist(time))
   status = unlist(status)
@@ -494,7 +499,6 @@ pvalue <- function(x,time,status,variables,v_names,num_categories){
 
   return(p.value)
 }
-
 
 
 #------------------------------------------------------------------------------------------------------------
@@ -536,10 +540,10 @@ selectvariables <- function(time,status,coxvar,degreeofcorrelation){
 
   #print(paste("*************************selectnoncorrvariables***************************"))
   #Calculation of correlation matrix
-  corr <- rcorr(as.matrix(coxvar$variables))
+  r <- cor(as.matrix(coxvar$variables))
 
   #r correlation coefficient
-  r <- corr$r
+  #r <- corr$r
   rshape <- dim(r)
   #Remove the polygonal line, its own correlation coefficient
   for(ri in 1:rshape[1]){
@@ -565,10 +569,10 @@ selectvariables <- function(time,status,coxvar,degreeofcorrelation){
 pairwise <- function(time, status,coxvar,degreeofcorrelation){
 
   #Calculation of correlation matrix
-  corr <- rcorr(as.matrix(coxvar$variables))
+  r <- cor(as.matrix(coxvar$variables))
 
   #r correlation coefficient
-  r <- corr$r
+  #r <- corr$r
 
   rshape <- dim(r)
 
@@ -590,7 +594,7 @@ pairwise <- function(time, status,coxvar,degreeofcorrelation){
     return(coxvar)
   }
 
-  max_ind <- which(r==r[which.max(r)],arr.ind = T)
+  max_ind <- which(r==r[which.max(r)],arr.ind = TRUE)
   #print(max_ind)
 
   #The largest, take all the largest front
@@ -621,8 +625,6 @@ pairwise <- function(time, status,coxvar,degreeofcorrelation){
 }
 
 
-
-
 #------------------------------------------------------------------------------------------------------------
 #Backward selection of variables
 stepbyselectfeature <- function(time,status,coxvar){
@@ -630,7 +632,7 @@ stepbyselectfeature <- function(time,status,coxvar){
 
   S <- try({
     #var_ <-data.frame(coxvar$variables)
-    S<-coxph(Surv(time,status)~.,coxvar$variables,singular.ok = T)
+    S<-coxph(Surv(time,status)~.,coxvar$variables,singular.ok = TRUE)
   }
   ,silent=FALSE)
 
@@ -664,7 +666,7 @@ stepbyselectfeature <- function(time,status,coxvar){
   #print(max$index)
   max$variables <- subset(coxvar$variables,select = max$index)
   #print("*************************stepbyselectfeature end***************************")
-  #max$
+
 
   return(max)
 
@@ -698,8 +700,7 @@ branchfun <- function(x,status,value_status,id){
 }
 
 
-library(haven)
-library(ggtree)
+
 # Converts list-structured data to a data format that can be converted to-structured data
 structureResult <- function(result,time,status,tsid){
 
@@ -797,13 +798,13 @@ structureResult <- function(result,time,status,tsid){
     #print(length(tp_var))
     #print(length(tp_varname))
     assign(paste("time_slices_",ts,"_variable"),tp_var)
-    assign(paste("time_slices_",ts,"_varname"),tp_varname)
+    assign(paste("time_slices_",ts,"_varvalue"),tp_varname)
 
     df1 = as.data.frame(matrix(unlist(tp_var),  byrow=1))
     names(df1) = paste("time_slices_",ts,"_variable",sep = "")
 
     df2 = as.data.frame(matrix(unlist(tp_varname),  byrow=1))
-    names(df2) = paste("time_slices_",ts,"_varname",sep = "")
+    names(df2) = paste("time_slices_",ts,"_varvalue",sep = "")
 
 
     new_data = cbind(new_data,df1,df2)
@@ -982,16 +983,12 @@ df2newick <- function(df, innerlabel=FALSE,survivaltime=3,period=365){
   mytree1 = as.treedata(x)
 }
 
-treetoexcel <- function(exceltree,tree,time,status,timeslicedata,tspatientid){
-  timesize <- min(length(time),length(status),length(timeslicedata),length(tspatientid))
-  df <- data.frame()
-  for (ii in 1:timesize) {
-    dataf <- cbind(tspatientid[[ii]],time[[ii]],status[[ii]],timeslicedata[[ii]])
-    dataf$time_slice<- ii
-    df <- rbind(df,dataf)
+treetoexcel <- function(exceltree,tree,DTSD){
 
-  }
-  df <- df%>% arrange(ID,time_slice)
+  time <- DTSD$time
+  status <- DTSD$status
+  timeslicedata <- DTSD$tsdata
+  tspatientid <- DTSD$tsid
 
   node = tree@phylo[["edge"]][,"node"]
   parent = tree@phylo[["edge"]][,"parent"]
@@ -1004,34 +1001,41 @@ treetoexcel <- function(exceltree,tree,time,status,timeslicedata,tspatientid){
   non.tip.point = sort(setdiff(node,tip.point))
   rootnode = setdiff(parent,non.tip.point)
 
-  survpath <- list()
-  df$nodepoint <- rootnode
-  mm=0
-  for (treepoint in node) {
-    res <- getonenodePatients(exceltree,treepoint,tree,df)
-    #print(res$path)
-    for (id in res$data$ID){
-      #print(id)
-      for (ip in 1:length(res$path)) {
-        #print(ip)
 
-        fit<-try(df[which(df$ID==id & df$time_slice==ip),]$nodepoint <- res$path[ip],silent=TRUE)
-        if('try-error' %in% class(fit)){
-          #print(paste(id,ip,res$path[ip],sep = "-"))
-          mm=mm+1
-          next
-        }
+  timesize <- length(time) #length(status),length(timeslicedata),length(tspatientid)
+  df <- data.frame()
+  for (ii in 1:timesize) {
+    dataf <- cbind(tspatientid[[ii]],time[[ii]],status[[ii]],timeslicedata[[ii]])
+    dataf$time_slice<- ii-1
+    df <- rbind(df,dataf)
+  }
+  ##-----------------------------------------warnings
+  df <- df%>% arrange(df$ID,df$time_slice)
+  #survpath <- list()
 
-      }
+  nodeindex <- which(df$time_slice==0,)
+  df$parent_node = rep(NA, nrow(df))
+  df$parent_node[nodeindex] <- rootnode
+  df$variable_value = rep(NA, nrow(df))
+  df$variable_value[nodeindex] <- "ALL"
 
-    }
+  dfpath <- list()
+  dfpath$df <- df
+  dfpath$maxpath <- 0
+  for (treepoint in tip.point) {
+    dfpath <- getonenodePatients(exceltree,treepoint,tree,dfpath)
   }
 
-  return(df)
+  return(dfpath)
 
 }
 
-getonenodePatients <- function(exceltree,treepoint,mytree,source){
+
+
+getonenodePatients <- function(exceltree,treepoint,mytree,dfpath){
+
+  df <- dfpath$df
+
 
   node = mytree@phylo[["edge"]][,"node"]
   parent = mytree@phylo[["edge"]][,"parent"]
@@ -1046,12 +1050,15 @@ getonenodePatients <- function(exceltree,treepoint,mytree,source){
   non.tip.point = sort(setdiff(node,tip.point))
   rootnode = setdiff(parent,non.tip.point)
 
+  #treelabel <- c(tip.label,node.label)
+
   if(treepoint> max(node) | treepoint< min(node)){
     stop("Out of node range")
   }
 
   #get treepoint survival path
   path <- c(treepoint)
+
   current_node <- treepoint
   while (current_node!=rootnode) {
     index <- which(node==current_node)
@@ -1061,30 +1068,48 @@ getonenodePatients <- function(exceltree,treepoint,mytree,source){
   #get  treepoint survival periods
   time_slice <- length(path)
 
+  dfpath$maxpath <- max(c(time_slice,dfpath$maxpath))
 
   for (i in time_slice:1){
 
     if (i==time_slice){
       newdf <- exceltree
+
     }else{
 
       if (path[i] %in% node.point){
         variable <- node.label[which(node.point==path[i])]
 
-        if("all" %in% variable){
+        if("all_all" %in% variable){
           next
         }
         varname <- substr(variable, 1,nchar(variable)-2)
 
         value <- substr(variable, nchar(variable),nchar(variable))
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
+
+        varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i-1 )
+        df[varindex,"sub_node"]=path[i]
+
+        varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i )
+        df[varindex,"parent_node"]=path[i]
+        df[varindex,"variable_value"]=variable
+
 
       }
       if (path[i] %in% tip.point){
         variable <- tip.label[which(tip.point==path[i])]
 
-        if("all" %in% variable){
+        if("all_all" %in% variable){
+
+          varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i-1 )
+          df[varindex,"sub_node"]=path[i]
+
+          varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i )
+          df[varindex,"parent_node"]=path[i]
+          df[varindex,"variable_value"]=variable
+
           next
         }
         varname <- substr(variable, 1,nchar(variable)-2)
@@ -1092,24 +1117,21 @@ getonenodePatients <- function(exceltree,treepoint,mytree,source){
         value <- substr(variable, nchar(variable),nchar(variable))
 
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
+
+        varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i-1 )
+        df[varindex,"sub_node"]=path[i]
+
+        varindex <- which(df$ID %in% newdf$ID & df$time_slice == time_slice-i )
+        df[varindex,"parent_node"]=path[i]
+        df[varindex,"variable_value"]=variable
+
       }
 
     }
   }
+  dfpath$df <- df
 
-  result <- list()
-  result$data <- newdf[,1:3]
-  result$path <- rev(path)
-
-  sourcedata <- source[which(source$time_slice==time_slice-1),]
-  #print(dim(sourcedata))
-  sourcedata <- sourcedata[sourcedata$ID %in% result$data$ID,]
-
-  result$data <-  subset(sourcedata,select=c("ID"))
-  names(result$data) <- c("ID")
-  #result <- cbind(result,sourcedata[,treatment])
-
-  return(result)
+  return(dfpath)
 }
 

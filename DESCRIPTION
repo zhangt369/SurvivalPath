@@ -1,21 +1,31 @@
 Package: SurvivalPath
 Type: Package
-Title: Survival Path models for time-series survival data
-Version: 1.1.1
-Author: Shen Lujun and Zhang Tao
-Maintainer: Zhang Tao <nyy1920@163.com>
-Description: Build the survival path of patients with a single disease.
+Title: an R Package for Construction and Visualization of Survival Path Tree using Time-Series Survival Data
+Version: 1.3.2
+Authors@R: c(
+    person("Shen Lujun", role = c("aut","cph","dtc")),person("Zhang Tao",
+    email="nyy1920@163.com",role= c("aut", "cre","cph"))
+    )
+Description: The SurvivalPath R package was developed to facilitate building personalized survival path models. 
+    The function 'survivalpath' return tree structure results, which can be used with ggtree function to draw 
+    easily beautiful and 'ready-to-publish' survival path tree.
 Depends:
-    R (>= 3.6.3)
+    R (>= 3.6)
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
 Imports: 
+  ggplot2,
   ggtree,
   treeio,
+  dplyr,
+  rms,
   survival,
   survminer,
   survivalROC,
-  dplyr,
   Hmisc
+Author:Shen Lujun [aut, cre,cph],
+  Zhang Tao [aut, cre,cph],
+Maintainer: Zhang Tao <nyy1920@163.com>
+Quotes:Shen Lujun (2018) <doi:10.1038/s41467-018-04633-7>

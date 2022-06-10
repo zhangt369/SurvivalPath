@@ -1,8 +1,6 @@
 
-#'@title  Calculate the number of participants (proportion) assigned to different sub-nodes after a certain
-#'node is treated by a specified plan
-#'@description Calculate the number of people (proportion) assigned to different sub-nodes after a
-#'certain node is treated by a specified plan
+#'@title Display node transition with specified treatment plan or exposure
+#'@description Calculate the number of subjects (proportion) assigned to different sub-nodes after specified treatment plan or exposure in certain node.
 #'@usage EvolutionAfterTreatment(
 #'df,
 #'treepoint,
@@ -10,55 +8,33 @@
 #'source,
 #'treatment
 #')
-#'@param df "data" in the return result of the survivalpath function
-#'@param treepoint  Numerical object;Specify the node for drawing the KM curve, which is in the survival tree
-#'@param  mytree  "mytree" in the return result of the survivalpath function
-#'@param source Raw data
-#'@param treatment Choose treatment
-#'@details By specifying the node, using mytree to calculate the relevant bifurcation variables and subsequent nodes,
-#'and using the original data to calculate the number or proportion of subjects who branch to each sub-nodes after
-#'the participants in parent-node adopts different treatment plans. Calculate the number of people assigned to different sub-nodes according
-#'to different treatment methods (proportion).
-#'@return A dataframe whose rows and columns are the next node and treatment plan, respectively
+#'@param df "data" in the return result of the \code{survivalpath()} function
+#'@param treepoint list object;Specify the node for drawing the KM curve, the node number is displayed in the survival path tree graph.
+#'@param  mytree  "tree" in the return result of the \code{survivalpath()} function
+#'@param source Data.frame of time slice data, which could be returned by \code{timedivision()}
+#'@param treatment Factor variable in the source data.frame. This argument is to specify the intervention or exposure that of interest at a specific node.
+#'@return A data.frame object, whose rows and columns represents the number of subjects in the sub-nodes (in the next time slice) and treatment plan, respectively.
 #'@export
-#'@examples data("DTSDHCC")
-#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
-#'
-#'time <- list()
-#'status <- list()
-#'tsdata <- list()
-#'tsid <- list()
-#'
-#'treatment <- list()
-#'for (i in 1:10){
-#'
-#'  data <- dataset[dataset['time_slice']==i,]
-#'
-#'  time <- c(time,list(data['OStime_day']))
-#'
-#'  status <- c(status,list(data['Status_of_death']))
-#'
-#'  tsid <- c(tsid,list(data['ID']))
-#'
-#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-#'
-#'
-#'  tsdata <- c(tsdata,list(c_data))
-#'
-#'  c_treatment <- subset(data, select = c("Resection"))
-#'
-#'  treatment <- c(treatment,list(c_treatment))
-#'}
-#'
-#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-#'
-#'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,degreeofcorrelation=0.7)
-#'
+#'@import dplyr
+#'@examples
+#'library(dplyr)
+#'data("DTSDHCC")
+#'id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+#'set.seed(123)
+#'id = sample(id,500)
+#'miniDTSDHCC <- DTSDHCC[DTSDHCC$ID %in% id,]
+#'dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+#'  statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+#'  "Largest.Diameter.of.Hepatic.Lesions",
+#'  "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+#'  "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+#'result <- survivalpath(resu,time_slices =9)
 #'mytree <- result$tree
 #'
-#'library(ggtree)
+#'#Draw the survival Path model
 #'library(ggplot2)
+#'library(ggtree)
 #'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -74,14 +50,7 @@
 #'       title = "Survival Tree") +
 #'  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 #'
-#'#plot KM curve
-#'treepoints = c(47,42)
-#'plotKM(result$data, treepoints,mytree,risk.table=T)
-#'#Comparing the efficacy of treatment methods by drawing survival curves
-#'treepoints = c(47,42)
-#'compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Resection")
-#'
-#'treepoint=42
+#'treepoint=15
 #'A = EvolutionAfterTreatment(result$data, treepoint,mytree,dataset,"Resection")
 #'mytable <- xtabs(~ `Resection`+treepoint, data=A)
 #'prop.table(mytable,1)
@@ -103,12 +72,12 @@ EvolutionAfterTreatment <- function(df,treepoint,mytree,source,treatment){
 
     newdf <- getnodePatients(df,d,mytree,source,treatment)
     newdf$treepoint <- d
-    print(dim(newdf))
+    #print(dim(newdf))
     data.df <- rbind(data.df,newdf)
   }
   data.df <- subset(data.df,select = -2)
 
-  A<- merge(parentDF,data.df,all = T,by.y = "ID")
+  A<- merge(parentDF,data.df,all = TRUE,by.y = "ID")
   A$treepoint[which(is.na(A$treepoint))] <- "Missing follow-up"
 
   return(A)
@@ -143,7 +112,7 @@ getnodePatients <- function(df,treepoint,mytree,source,treatment){
   }
   #get  treepoint survival periods
   time_slice <- length(path)
-  print(path)
+  #print(path)
 
   for (i in time_slice:1){
 
@@ -161,7 +130,7 @@ getnodePatients <- function(df,treepoint,mytree,source,treatment){
 
         value <- substr(variable, nchar(variable),nchar(variable))
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
 
       }
       if (path[i] %in% tip.point){
@@ -175,7 +144,7 @@ getnodePatients <- function(df,treepoint,mytree,source,treatment){
         value <- substr(variable, nchar(variable),nchar(variable))
 
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
         }
 
     }
@@ -188,8 +157,9 @@ getnodePatients <- function(df,treepoint,mytree,source,treatment){
   sourcedata <- sourcedata[sourcedata$ID %in% result$ID,]
 
   result <-  subset(sourcedata,select=c("ID"))
-  names(result) <- c("ID")
+  #names(result) <- c("ID")
   result <- cbind(result,sourcedata[,treatment])
+  names(result) <- c("ID",treatment)
 
   return(result)
 }

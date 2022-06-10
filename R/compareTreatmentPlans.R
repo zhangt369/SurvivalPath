@@ -5,9 +5,8 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 
-#'@title  Compare and Draw the KM curve of different nodes based on specified treatment plan
-#'@description Based on the survival tree, specify nodes and specify treatment methods,
-#'draw survival curves to compare treatments
+#'@title  Compare and Draw the KM curve of specified treatment plan or exposure in selected nodes
+#'@description Based on the survival tree, specify the node of interest and the treatment methods, draw survival curves to evaluate the impact of treatments or exposure.
 #'@usage compareTreatmentPlans(
 #'df,
 #'treepoints,
@@ -15,57 +14,38 @@
 #'source,
 #'treatment
 #')
-#'@param df "data" in the return result of the survivalpath function
+#'@param df "data" in the return result of the \code{survivalpath()} function
 #'@param treepoints list object;Specify the node for drawing the KM curve, which is displayed in the survival path graphs
-#'@param  mytree  "mytree" in the return result of the survivalpath function
-#'@param source Raw data
-#'@param treatment Choose treatment variable
-#'@details By specifying the node, using mytree to calculate the previous branch variables,
-#'and calculating with the original data, the group of subjects with different treatment plans
-#'at different nodes can be screened out. Draw the survival curve of patients based on the selected groups
+#'@param  mytree  "tree" in the return result of the \code{survivalpath()} function
+#'@param source Data.frame of time slice data, which could be returned by \code{timedivision()}
+#'@param treatment Factor variable in the source data.frame. This argument is to specify the intervention or exposure that of interest at a specific node.
+#'@details The function creates survival curves of specified treatment plan or exposure in selected nodes. The results should be interpreted with caution
+#'as the effect of covariates have not been adjusted.
+#'@return No return value.
 #'@seealso survminer
 #'@import survival
 #'@importFrom stats as.formula
+#'@importFrom ggplot2 theme_bw
 #'@export
 #'@examples
+#'library(dplyr)
 #'data("DTSDHCC")
-#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=1.5)
-#'
-#'time <- list()
-#'status <- list()
-#'tsdata <- list()
-#'tsid <- list()
-#'
-#'treatment <- list()
-#'for (i in 1:10){
-#'
-#'  data <- dataset[dataset['time_slice']==i,]
-#'
-#'  time <- c(time,list(data['OStime_day']))
-#'
-#'  status <- c(status,list(data['Status_of_death']))
-#'
-#'  tsid <- c(tsid,list(data['ID']))
-#'
-#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-#'
-#'  tsdata <- c(tsdata,list(c_data))
-#'
-#'  c_treatment <- subset(data, select = c("Resection"))
-#'
-#'  treatment <- c(treatment,list(c_treatment))
-#'}
-#'
-#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-#'
-#'result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 10,treatments = treatment,p.value=0.05,
-#'degreeofcorrelation=0.7)
+#'id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+#'set.seed(123)
+#'id = sample(id,500)
+#'miniDTSDHCC <- DTSDHCC[DTSDHCC$ID %in% id,]
+#'dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+#'  statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+#'  "Largest.Diameter.of.Hepatic.Lesions",
+#'  "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+#'  "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+#'result <- survivalpath(resu,time_slices =9)
 #'
 #'mytree <- result$tree
 #'
-#'library(ggtree)
 #'library(ggplot2)
+#'library(ggtree)
 #'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -81,11 +61,8 @@
 #'       title = "Survival Tree") +
 #'  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 #'
-#'#plot KM curve
-#'treepoints = c(16,23)
-#'plotKM(result$data, treepoints,mytree,risk.table=T)
 #'#Comparing the efficacy of treatment methods by drawing survival curves
-#'treepoints = c(17,22)
+#'treepoints = c(14,20)
 #'compareTreatmentPlans(result$data, treepoints,mytree,dataset,"Resection")
 #'
 
@@ -163,7 +140,7 @@ getPatients <- function(df,treepoint,mytree,source,treatment){
 
         value <- substr(variable, nchar(variable),nchar(variable))
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
 
       }
       if (path[i] %in% tip.point){
@@ -177,7 +154,7 @@ getPatients <- function(df,treepoint,mytree,source,treatment){
         value <- substr(variable, nchar(variable),nchar(variable))
 
         newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_variable",sep = "")]==varname,),]
-        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varname",sep = "")]==value,),]
+        newdf <- newdf[which(newdf[,paste("time_slices_",time_slice-i,"_varvalue",sep = "")]==value,),]
       }
 
     }
@@ -194,7 +171,7 @@ getPatients <- function(df,treepoint,mytree,source,treatment){
   result <-  subset(sourcedata,select=c("OStime_day","Status_of_death"))
   names(result) <- c("time","status")
   result <- cbind(result,sourcedata[,treatment])
-
+  names(result) <- c("time","status",treatment)
   return(result)
 }
 

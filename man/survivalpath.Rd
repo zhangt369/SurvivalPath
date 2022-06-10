@@ -2,13 +2,10 @@
 % Please edit documentation in R/survivalpath.R
 \name{survivalpath}
 \alias{survivalpath}
-\title{Build survival path model using time-slices data}
+\title{Build Survival Path Model Using Dynamic Time Series Data (DTSD) object}
 \usage{
 survivalpath(
-time,
-status,
-timeslicedata,
-tspatientid,
+DTSD,
 time_slices,
 treatments=NULL,
 num_categories=2,
@@ -19,85 +16,82 @@ rates=365
 )
 }
 \arguments{
-\item{time}{list object;Elements sorted by time slice, each element is a
-Dataframe object, representing event time or censoring time for subjects}
+\item{DTSD}{A DTSD class object. See function \code{generatorDTSD()} for details.}
 
-\item{status}{list object;Elements sorted by time slice, each element is a
-Dataframe object, representing status, 1 if death or event, 0 otherwise.}
+\item{time_slices}{numeric, define the total number of time slices (starting from the front) needed to be included in the survival path model}
 
-\item{timeslicedata}{list object; Elements sorted by time slice, each element is a
-Dataframe object, representing candidate variables for the subject}
+\item{treatments}{A list object, with default value of NULL. This argument is used to specify the intervention measures/exposure taken by
+the observation at different time slices. The treatment or exposure variables specified will not be utilized in construction of the survival path model}
 
-\item{tspatientid}{list object; Elements sorted by time slice, each element is a
-Dataframe object, representing the subjects? unique identification number}
+\item{num_categories}{Numeric, the default value is 2. The maximum number of branches that each node can divide}
 
-\item{time_slices}{numeric, define the total number of time slices (starting from the front) need to be included in the survival path model}
-
-\item{treatments}{default NULL.It is possible to specify the intervention measures taken
-by the subjects at different time slices. list object}
-
-\item{num_categories}{default 2. The maximum number of branches that each node can divide}
-
-\item{p.value}{p.value for hypothesis testing; variables with p value less than p.value are significant}
+\item{p.value}{\code{p.value} for hypothesis testing; variables with p value less than p.value in univariate analysis are significant candidate
+variables and will undergo further feature selection}
 
 \item{minsample}{Minimum sample size for branching}
 
-\item{degreeofcorrelation}{default 0.7;When the correlation between variables is greater than this value,
-the variables are considered to have collinearity.}
+\item{degreeofcorrelation}{default 0.7;When the correlation between variables is greater than this value, the variables are considered
+to have collinearity. The pair of variables that exceed the correlation coefficient will automatically compare their Akaike information criterion (AIC)
+values when each of two serve as the only predictor for outcome; the variable with the smaller AIC value will be removed.}
 
-\item{rates}{Calculate the survival rate of the node in the survival path at that point "rates" in time}
+\item{rates}{Numeric value. Calculate the rate of the outcome for the nodes in the survival path model at the time point of the argument \code{rates}}
 }
 \value{
-Returns a list of the following items:
-data dataframe:contains the main risk factors and corresponding values of each
-subject divided at different time points
-tree survival tree of newick structure
+The survivalpath function returns an object, which includes data, tree and df.
+\item{data}{\code{data} describes the grouping variables and values for each observation at different time slices.}
+\item{tree}{A \code{treedata} object \code{tree},which facilitate creation of tree diagram and mapping of patients' personalized survival path}
+\item{df}{A Data.frame object containing the node numbers corresponding to each observation at different time slices in survival path tree model
+tree. The dataframe added three new columns, the parent_node correspond to the upper node that the observation belongs to, which indicate the group
+of participants for modeling and feature selection; the sub_node indicates the node that the corresponding observation represent after subdivision
+from the parent_node, the information of sub_node is used for model evaluation and comparison. The variable_value indicate the reason for transfer
+from the parent_node to the sub_node.}
+\item{maxpath}{The longest path length in the survival path model.}
 }
 \description{
-build survival path models and return tree-like structure results
+Survival Path Mapping for Dynamic Prediction of Cancer Patients Using Time-Series Survival Data.This is the core function that build
+survival path tree model based on Akaike information criterion (AIC) and self-designed arguments.
 }
 \details{
-for survivalpath
+After the pre-processing of data, under a user-defined parameters on covariates, significance level, minimum bifurcation sample size and number of time slices
+for analysis, survival paths can be computed using the main function, which can be visualized as a tree diagram.
+}
+\note{
+The idea of developing the SurvivalPath R package stems from our previous exploratory work, in which we attempted to achieve dynamic prognosis
+prediction by establishing survival paths based on the time-series data of patients with hepatocellular carcinoma (HCC). The survival path approach
+we proposed provide a potential solution for dynamic prognosis prediction and management of cancer patients by constructing survival path maps using
+returned key prognostic factors after analysis of structured time-series survival data. More importantly, the survival path model could be easily
+understood and utilized by clinicians when compared to black-box models.
+The SurvivalPath R package is a newly developed tool to facilitate fast building of survival path models, with an aim of promoting standardization
+of this methodology. In this package we optimized the feature selection process. Oneto one collinearity analysis was embedded (as an argument) to
+screen out noncollinear candidate variables before formal feature selection in the main function to reduces the confounding impact of potential
+collinearity on feature selection in the Cox model. In addition, the SurvivalPath R package is now compatible with continuous variable. The classifydata
+function enabling automatic binary classification of continuous variables and their entry into the model.
+This methodology is still young, and we welcome efforts from all the world to improve it.
 }
 \examples{
+library(dplyr)
 data("DTSDHCC")
-dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#Randomly select a proportion of cases for demo
+id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+set.seed(123)
+id = sample(id,500)
+miniDTSDHCC <- DTSDHCC[DTSDHCC$ID \%in\% id,]
+#Convert multiple rows time series data into time-slices data
+dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#Create DTSD object using time-slices data
+resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+ statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+ "Largest.Diameter.of.Hepatic.Lesions",
+ "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+ "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+#Construction of survival path using this function, takes minutes
+result <- survivalpath(resu,time_slices =9)
 
-time <- list()
-status <- list()
-tsdata <- list()
-tsid <- list()
-
-treatment <- list()
-for (i in 1:10){
-
- data <- dataset[dataset['time_slice']==i,]
-
- time <- c(time,list(data['OStime_day']))
-
- status <- c(status,list(data['Status_of_death']))
-
- tsid <- c(tsid,list(data['ID']))
-
- c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-   "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-
-
- tsdata <- c(tsdata,list(c_data))
-
- c_treatment <- subset(data, select = c("Resection"))
-
- treatment <- c(treatment,list(c_treatment))
-}
-
-tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-
-result <- survivalpath(time,status,tsdata[[1]],tsid,time_slices = 8,treatments = treatment,p.value=0.05,
-degreeofcorrelation=0.7)
-
-library(ggtree)
+#Draw Suvival Path Tree
 library(ggplot2)
+library(ggtree)
 mytree <- result$tree
+
 ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
  theme_tree2() +
  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -113,6 +107,12 @@ ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
       title = "Survival Tree") +
  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 
+}
+\references{
+Lujun Shen. (2018)
+\emph{Dynamically prognosticating patients with hepatocellular carcinoma through survival paths mapping based on time-series data},
+\url{https://www.nature.com/articles/s41467-018-04633-7.pdf}\cr
+\emph{Nat Commun. 2018 Jun 8;9(1):2230. doi: 10.1038/s41467-018-04633-7. PMID: 29884785; PMCID: PMC5993743.}
 }
 \author{
 Lujun Shen and Tao Zhang

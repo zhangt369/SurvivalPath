@@ -1,77 +1,48 @@
 
 #'@title Screen and collect data of subjects that meet the given conditions
-#'@description The data of the subjects that meet the conditions for the first time and the data of
-#'subsequent time slices will also be selected. Their data from initial time slice that meet the given conditions to last time slice were compiled into a new time-slice dataset
+#'@description Based on screening criteria, for each specific subject, the data of the observation that meet the
+#'conditions for the first time and the data of subsequent observations in following time slices will be collected.
+#'The data from initial time slice that meet the given conditions to last time slice were then compiled into a new
+#'time-slice dataset, with an aim to create personalized survival path map.
 #'@usage matchsubgroup(
-#'time,
-#'status,
-#'timeslicedata,
-#'tspatientid,
+#'DTSD,
 #'varname,
 #'varvalue
 #')
-#'@param time list object;Elements sorted by time node, each element is a
-#'Dataframe object, representing event time or censoring time for subjects
-#'@param status list object;Elements sorted by time node, each element is a
-#'Dataframe object, representing status, 1 if death or event, 0 otherwise.
-#'@param  timeslicedata list object; Elements sorted by time node, each element is a
-#'Dataframe object, representing risk factors for the subject
-#'@param tspatientid list object; Elements sorted by time node, each element represents the subjects identification number
-#'@param  varname list object;The variable used to screen subjects, and the variable
-#'needs to be a variable in timeslicedata
-#'@param varvalue  list object;Subjects whose varname variable is equal to varvalue will be selected
-#'@details According to the input time, status, variables, subject ID, etc., the data of eligible
-#'subjects is screened through specified conditions, and the subject and the variable data of the
-#'first and subsequent time slices are re-screened. The final returned result contains four list
-#'objects: time, state, timeslicedata, subject ID(tspatientid).
-#'@return Returns a list of the following items:
-#'time,state,timeslicedata,tspatientid
+#'@param DTSD Object of class DTSD
+#'@param  varname list object;The variable used to screen subjects, and the variables need to be contained in the time-slice data.
+#'@param varvalue  list object;Subjects whose varname variable value equal to \code{varvalue} will be selected
+#'@details According to the input time, status, variables, subject ID, etc., the data of eligible subjects is screened through specified
+#'given conditions. The subject whose variable data of the first and subsequent time slices are sequentially screened. Once an observation
+#'meet the given condition, data of that observation and the observations in following time slices will be for the subject will be collected.
+#'Data of all subject that meet the criteria will be compiled into a new time-slice dataset. Based on the new dataset, the function returns a
+#'new DTSD object was got. The final returned result contains four list objects: time, state, timeslicedata, subject ID (tspatientid).
+#'@return Returns a DTSD object.
 #'@author Shen Lujun and ZhangTao
 #'@export
 #'@examples
+#'library(dplyr)
 #'data("DTSDHCC")
-#'dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+#'set.seed(123)
+#'id = sample(id,500)
+#'miniDTSDHCC <- DTSDHCC[DTSDHCC$ID %in% id,]
+#'dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+#'resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+#'  statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+#'  "Largest.Diameter.of.Hepatic.Lesions",
+#'  "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+#'  "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
 #'
-#'time <- list()
-#'status <- list()
-#'tsdata <- list()
-#'tsid <- list()
+#'varname=list('Amount.of.Hepatic.Lesions')
+#'varvalue=list(1)
+#'df <- matchsubgroup(resu,varname=varname ,varvalue=varvalue)
 #'
-#'treatment <- list()
-#'for (i in 1:10){
-#'
-#'  data <- dataset[dataset['time_slice']==i,]
-#'
-#'  time <- c(time,list(data['OStime_day']))
-#'
-#'  status <- c(status,list(data['Status_of_death']))
-#'
-#'  tsid <- c(tsid,list(data['ID']))
-#'
-#'  c_data <- subset(data, select = c( "Age", "Amount of Hepatic Lesions", "Largest Diameter of Hepatic Lesions (mm)", "New Lesion",
-#'    "Vascular Invasion" ,"Local Lymph Node Metastasis", "Distant Metastasis" , "Child_pugh_score" ,"AFP"))
-#'
-#'
-#'  tsdata <- c(tsdata,list(c_data))
-#'
-#'  c_treatment <- subset(data, select = c("Resection"))
-#'
-#'  treatment <- c(treatment,list(c_treatment))
-#'}
-#'
-#'tsdata <- classifydata(time,status,tsdata,tsid,predict.time=365*1)
-#'
-#'varname=list('Amount of Hepatic Lesions','Largest Diameter of Hepatic Lesions (mm)')
-#'varvalue=list(1,1)
-#'df <- matchsubgroup(time,status,tsdata[[1]],tsid,varname=
-#'                      list('Amount of Hepatic Lesions') ,varvalue=list(1))
-
-#'#ggtree
-#'result <- survivalpath(df$time,df$status,df$timeslicedata,df$tspatientid,time_slices=9)
+#'result <- survivalpath(df,time_slices =4)
 #'mytree <- result$tree
 #'
-#'library(ggtree)
 #'library(ggplot2)
+#'library(ggtree)
 #'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
 #'  theme_tree2() +
 #'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
@@ -88,7 +59,12 @@
 #'  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 #'
 
-matchsubgroup <- function(time,status,timeslicedata,tspatientid,varname,varvalue){
+matchsubgroup <- function(DTSD,varname,varvalue){
+
+  time <- DTSD$time
+  status <- DTSD$status
+  timeslicedata <- DTSD$tsdata
+  tspatientid <- DTSD$tsid
 
   d_time <- data.frame()
   d_status <- data.frame()
@@ -112,7 +88,7 @@ matchsubgroup <- function(time,status,timeslicedata,tspatientid,varname,varvalue
   names(d_time) <- "time_time"
   dataset <- cbind(dataset, d_time)
 
-  dataset <- dataset %>% group_by(id_id) %>% arrange(id_id,time_slice)
+  dataset <- dataset %>% group_by(dataset$id_id) %>% arrange(dataset$id_id,time_slice)
 
   data <- dataset
 
@@ -165,6 +141,8 @@ matchsubgroup <- function(time,status,timeslicedata,tspatientid,varname,varvalue
 
   tspatientid <- list()
 
+  alllength <- list()
+
   for (i in 1:num){
 
     data <- n_data[n_data['time_slice']==i,]
@@ -184,12 +162,19 @@ matchsubgroup <- function(time,status,timeslicedata,tspatientid,varname,varvalue
     c_data <- subset(data, select =varname)
 
     timeslicedata <- c(timeslicedata,list(c_data))
+    #print(dim(ID))
+    alllength <- c(alllength,dim(ID)[1])
   }
 
-  result <- list()
-  result$time = time
-  result$status = status
-  result$tspatientid = tspatientid
-  result$timeslicedata = timeslicedata
-  return(result)
+  ndata <- list(time =time,
+                status = status ,
+                tsdata = timeslicedata,
+                tsid = tspatientid,
+                length=length(tspatientid),
+                sublength= alllength,
+                cutoff = DTSD$cutoff
+  )
+  class(ndata) <- append(class(ndata),c("DTSD"))
+
+  return(ndata)
 }

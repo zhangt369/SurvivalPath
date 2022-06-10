@@ -2,10 +2,9 @@
 % Please edit documentation in R/timedivision.R
 \name{timedivision}
 \alias{timedivision}
-\title{Convert time-series data into time-slices in construction of survival paths}
+\title{Convert Multiple Rows Arranged Time-Series Data into Time-Slices Data}
 \usage{
-timedivision(
-dataset,
+timedivision(dataset,
 ID,
 time,
 period=30,
@@ -14,32 +13,45 @@ right_interval = 0.5
 )
 }
 \arguments{
-\item{dataset}{Refer to the colomn arranged time-series dataset, which has survival information}
+\item{dataset}{A multiple rows arranged time-series dataset, containing identification numbers, follow-up time points, risk factors, survival time, and survival status.}
 
-\item{ID}{Subject ID corresponding to each row of data in the dataset, which should be unique for each participant}
+\item{ID}{Character string, representing\code{ID} corresponding to each row of data in the dataset, which should be unique for each subject.}
 
-\item{time}{the variable which indicates the time when each row of data in the dataset is collected}
+\item{time}{Date format, which indicates time point of each observation.}
 
-\item{period}{The time interval at which time-series data of subjects with the same identification number are converted into time-slices data.}
+\item{period}{Numeric, utilized to customize follow-up sampling \code{period};normally counting in days.}
 
-\item{left_interval}{Refer to the times of time slice interval of lower level of time for inclusion the time point data into specific time slice.
-For multiple time point data collected within the left and right interval of the specific time slice, the time point data closest to the integral
-times of time slice interval and within the left interval is the first choice.
-When there is no time point data in the left interval, the time point data closest to the integral times of time slice interval and within the right interval is the selected.}
+\item{left_interval}{Numeric, preferentially fall into the interval of (0,1). For a specific sampling in time slice \code{T}, the earliest sampling in the time interval [ \code{left_interval}*period, right_interval*period] is considered as the sampling data of the specific time slice \code{T}.}
 
-\item{right_interval}{Refer to the times of time slice interval of higher level of time for inclusion the time point data into specific time slice.
-When there is no time point data in the left interval, the time point data closest to the integral times of time slice interval and within the right interval is the selected.}
+\item{right_interval}{same as above.}
 }
 \value{
-dataframe;Data with the same ID number, sorted by consecutive time nodes
+data.frame;observations of different time slices for each ID.The new data.frame returned added a new column "time_slice", which indicates the time slice of each observation included.
 }
 \description{
-Perform data preprocessing for survivalpath, filter and regularize
-data entries that conform to continuous time intervals (namely, into time slices) according to time.
+Data preprocessing process essential for building survival path model. For each subject with  observations at different time point,
+screen out specific observations at each specific time slice by setting associated parameters, includes period, left_interval and right_interval.
+}
+\details{
+This function is used to facilitate automatic generation of time-slice data. The date of observations for each subject should be arranged in ascending order.
+The researchers can skip this process if they intend to prepare time-slice data manually or using customized codes. It's important to note that this
+function only support data sampling of the "earliest" observation of interval in each time slice. If no observation fall into the interval of time
+slice T, then sampling of observation in time slice T+1 for that subject will be terminated.
 }
 \examples{
+library(dplyr)
 data("DTSDHCC")
-dataset = timedivision(DTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
+set.seed(123)
+id = sample(id,500)
+miniDTSDHCC <- DTSDHCC[DTSDHCC$ID \%in\% id,]
+dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
+resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
+ statusindex="Status_of_death",variable =c( "Age", "Amount.of.Hepatic.Lesions",
+ "Largest.Diameter.of.Hepatic.Lesions",
+ "New.Lesion","Vascular.Invasion" ,"Local.Lymph.Node.Metastasis",
+ "Distant.Metastasis" , "Child_pugh_score" ,"AFP"),predict.time=365*1)
+
 }
 \author{
 Lujun Shen and Tao Zhang
