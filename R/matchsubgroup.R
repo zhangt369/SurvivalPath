@@ -25,7 +25,7 @@
 #'data("DTSDHCC")
 #'id = DTSDHCC$ID[!duplicated(DTSDHCC$ID)]
 #'set.seed(123)
-#'id = sample(id,500)
+#'id = sample(id,120)
 #'miniDTSDHCC <- DTSDHCC[DTSDHCC$ID %in% id,]
 #'dataset = timedivision(miniDTSDHCC,"ID","Date",period = 90,left_interval = 0.5,right_interval=0.5)
 #'resu <- generatorDTSD(dataset,periodindex="time_slice",IDindex="ID" ,timeindex="OStime_day",
@@ -39,24 +39,6 @@
 #'df <- matchsubgroup(resu,varname=varname ,varvalue=varvalue)
 #'
 #'result <- survivalpath(df,time_slices =4)
-#'mytree <- result$tree
-#'
-#'library(ggplot2)
-#'library(ggtree)
-#'ggtree(mytree, color="black",linetype=1,size=1.2,ladderize = TRUE )+
-#'  theme_tree2() +
-#'  geom_text2(aes(label=label),hjust=0.6, vjust=-0.6 ,size=3.0)+
-#'  geom_text2(aes(label=paste(node,size,mytree@data$survival,mytree@data$survivalrate,sep = "/")),
-#'  hjust=0.6, vjust=-1.85 ,size=3.0)+
-#'  #geom_point2(aes(shape=isTip, color=isTip), size=mytree1@data$os/40)+
-#'  geom_point2(aes(shape=isTip, color=isTip), size=mytree@data$size%/%200+1,show.legend=FALSE)+
-#'  #guides(color=guide_legend(title="node name/sample number/Median survival time/Survival rate")) +
-#'  labs(size= "Nitrogen",
-#'       x = "TimePoints",
-#'       y = "Survival",
-#'       subtitle = "node_name/sample number/Median survival time/Survival rate",
-#'       title = "Survival Tree") +
-#'  theme(legend.title=element_blank(),legend.position = c(0.1,0.9))
 #'
 
 matchsubgroup <- function(DTSD,varname,varvalue){
@@ -92,22 +74,22 @@ matchsubgroup <- function(DTSD,varname,varvalue){
 
   data <- dataset
 
-  if (!is.list(varname)) {
-    stop('varname should be a list!')
-  }
-  if (!is.list(varvalue)) {
-    stop('varvalue should be a list!')
-  }
+  #if (!is.list(varname)) {
+  #  stop('varname should be a list!')
+  #}
+  #if (!is.list(varvalue)) {
+  #  stop('varvalue should be a list!')
+  #}
 
-  if (length(varname)!=length(varvalue)) {
-    stop('The length ofvarvalue should equal with the length of varvalue!')
-  }
+  #if (length(varname)!=length(varvalue)) {
+  #  stop('The length ofvarvalue should equal with the length of varvalue!')
+  #}
 
   len <- length(varname)
 
-  if (len==0){
-    stop("Variables not specified for selecting data")
-  }
+  #if (len==0){
+  #  stop("Variables not specified for selecting data")
+  #}
 
 
   for (i in 1:len) {
